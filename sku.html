@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aero Express - Add-ons & Receipt</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.2.4/core.css">
+    <script type="module" src="https://pyscript.net/releases/2025.2.4/core.js"></script>
+
+    <style>
+        body {
+            background-image: url(sku.pdf);
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #fff;
+            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            min-height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .navbar {
+            width: 100%;
+            background-color: #1b2a42;
+            border-radius: 15px;
+        }
+
+        .card {
+            background-color: #1b2a42d1;
+            color: #ffffff;
+            border-radius: 15px;
+            border: 5px solid #1b2a42;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);;
+        }
+
+        .stuff-row {
+            display: flex;
+            justify-content: space-between;
+            padding: .4rem 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .stuff-row:last-child {
+            border-bottom: none;
+        }
+
+        #seat_map {
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .pop-up {
+            position: fixed;
+            inset: 0;
+            z-index: 1055;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+            background-color: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s linear, visibility 0.15s;
+        }
+
+        .pop-up.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .pop-up-center {
+            width: 100%;
+            max-width: 500px;
+            transform: translate(0, -50px);
+            transition: transform 0.3s ease-out;
+        }
+
+        .pop-up.show .pop-up-center {
+            transform: none;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            background-color: #212529;
+            color: #ffffff;
+            border: 1px solid;
+            border-radius: 8px;
+        }
+
+        #error .content {
+            border-color: #dc3545;
+        }
+
+        #reset .content {
+            border-color: #ffc107;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid;
+        }
+
+        .header .btn-close {
+            padding: 8px;
+            margin: -8px -8px -8px auto;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 20px;
+            line-height: 1.5;
+        }
+
+        .pop-up-msg {
+            padding: 16px;
+        }
+
+        .footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 12px;
+            border-top: 1px solid;
+        }
+
+        .footer > * {
+            margin: 4px;
+        }
+
+        @media (max-width: 576px) {
+            .pop-up {
+                padding: 8px;
+            }
+        }
+
+        @media print {
+            .navbar,
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: #fff;
+                color: #000;
+            }
+
+            .card {
+                border: 1px solid #000;
+                background: #fff;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">✈️ Aero Express</a>
+            <button type="button" class="btn btn-outline-light btn-sm"
+                py-click="show_reset">← Back to Booking</button>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+
+                <div id="form_card" class="card p-4 shadow">
+                    <h2 class="text-center mb-4">Add-ons & SKU</h2>
+
+                    <div id="stuff" class="mb-4">
+                        <div class="stuff-row"><span>Passenger</span><span id="s_passenger"></span></div>
+                        <div class="stuff-row"><span>From</span><span id="s_airport"></span></div>
+                        <div class="stuff-row"><span>To</span><span id="s_route"></span></div>
+                        <div class="stuff-row"><span>Ticket type</span><span id="s_trip"></span></div>
+                        <div class="stuff-row"><span>Travel class</span><span id="s_class"></span></div>
+                        <div class="stuff-row"><span>Tickets</span><span id="s_tickets"></span></div>
+                        <div class="stuff-row"><span>Seats left on route</span><span id="s_seats"></span></div>
+                        <div class="stuff-row"><span>Fare</span><span id="s_fare"></span></div>
+                        <div class="stuff-row"><span>Seat add-on</span><span id="s_seatfee">₱0.00</span></div>
+                        <div class="stuff-row fw-bold text-success fs-5"><span>Total</span><span id="s_total"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="choose_seat" class="form-label">Seat Selection Add-on (per ticket):</label>
+                        <select id="choose_seat" class="form-select" py-change="on_seat_option">
+                            <option value="">-- Select Seat Choice Option --</option>
+                            <option value="5000">Choose Seat (+₱5,000 per ticket)</option>
+                            <option value="0">Random Seat Assignment (Free)</option>
+                        </select>
+                    </div>
+
+                    <div id="seat_picker" class="mb-3 d-none">
+                        <p id="seat_status" class="text-center fw-bold mb-2"></p>
+                        <div class="text-center small text-secondary mb-2">Front of plane</div>
+                        <div id="seat_map"></div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-2">
+                        <button id="generateBtn" py-click="generate_sku"
+                            class="btn btn-success btn-lg">Generate SKU</button>
+                        <button id="purchaseBtn" py-click="purchase_additional" class="btn btn-primary btn-lg">Confirm &
+                            View Receipt</button>
+                    </div>
+                </div>
+
+                <div id="sku_card" class="card p-4 shadow d-none">
+                    <h2 class="text-center mb-3">Your SKU</h2>
+                    <p id="g_sku" class="text-center text-warning fw-bold display-5 mb-2"></p>
+                    <p id="g_details" class="text-center mb-4"></p>
+                    <div class="d-grid">
+                        <button py-click="back_to_addons" class="btn btn-primary btn-lg">Back to add-ons</button>
+                    </div>
+                </div>
+
+                <div id="receipt_card" class="card p-4 shadow d-none">
+                    <h2 class="text-center mb-1">Booking Confirmed</h2>
+                    <p class="text-center text-warning fw-bold fs-4 mb-4">Ref: <span id="r_ref"></span></p>
+
+                    <div class="stuff-row"><span>SKU</span><span id="r_sku"></span></div>
+                    <div class="stuff-row"><span>Passenger</span><span id="r_passenger"></span></div>
+                    <div class="stuff-row"><span>From</span><span id="r_airport"></span></div>
+                    <div class="stuff-row"><span>To</span><span id="r_route"></span></div>
+                    <div class="stuff-row"><span>Ticket type</span><span id="r_trip"></span></div>
+                    <div class="stuff-row"><span>Travel class</span><span id="r_class"></span></div>
+                    <div class="stuff-row"><span>Tickets</span><span id="r_tickets"></span></div>
+                    <div class="stuff-row"><span>Seat</span><span id="r_seat"></span></div>
+                    <div class="stuff-row"><span>Fare</span><span id="r_fare"></span></div>
+                    <div class="stuff-row"><span>Seat add-on</span><span id="r_seatfee"></span></div>
+                    <div class="stuff-row fw-bold text-success fs-5"><span>Total paid</span><span id="r_total"></span>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4 no-print">
+                        <button class="btn btn-outline-light" onclick="window.print()">Print receipt</button>
+                        <a href="index.html" class="btn btn-primary" onclick="sessionStorage.clear()">Book another
+                            flight</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="pop-up" id="reset" aria-labelledby="reset-label" aria-hidden="true"
+        py-click="close_backdrop">
+        <div class="pop-up-center">
+            <div class="content">
+                <div class="header border-warning">
+                    <h5 class="title text-warning" id="reset-label">Warning</h5>
+                    <button type="button" class="btn-close btn-close-white" py-click="close_popup"
+                        aria-label="Close"></button>
+                </div>
+                <div class="pop-up-msg">Warning: This will reset your progress.</div>
+                <div class="footer border-warning">
+                    <button type="button" class="btn btn-outline-light" py-click="close_popup">Stay here</button>
+                    <a href="index.html" class="btn btn-warning" onclick="sessionStorage.clear()">Go back to
+                        booking</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pop-up" id="error" aria-labelledby="error-label" aria-hidden="true"
+        py-click="close_backdrop">
+        <div class="pop-up-center">
+            <div class="content">
+                <div class="header border-danger">
+                    <h5 class="title text-danger" id="error-label">Booking error</h5>
+                    <button type="button" class="btn-close btn-close-white" py-click="close_popup"
+                        aria-label="Close"></button>
+                </div>
+                <div class="pop-up-msg" id="error-msg"></div>
+                <div class="footer border-danger">
+                    <button type="button" class="btn btn-danger" py-click="close_popup">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="py" src="./main.py"></script>
+</body>
+
+</html>
